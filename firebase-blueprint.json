@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "Score": {
+      "title": "Score",
+      "description": "A player score record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "distance": { "type": "number" },
+        "totalScore": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "distance", "totalScore", "timestamp"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile data.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "isAnonymous": { "type": "boolean" }
+      },
+      "required": ["userId", "username"]
+    }
+  },
+  "firestore": {
+    "/scores/{scoreId}": {
+      "schema": "Score",
+      "description": "Global leaderboard scores"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    }
+  }
+}
