@@ -1,8 +1,10 @@
 <div align="center">
   <img width="1200" alt="Cubie-X Banner" src="public/banner.png" />
-  # 🧊 Cubie-X
-  ### The Ultimate High-Performance Vector Runner
-  *Precision Physics • Global Competition • Hardened Security*
+  <h1>🧊 Cubie-X</h1>
+  <h3>The Ultimate High-Performance Vector Runner</h3>
+  <p><i>Precision Physics • Global Competition • Hardened Security</i></p>
+
+  <br />
 
   [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
   [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
