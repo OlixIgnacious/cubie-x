@@ -8,9 +8,10 @@ import { Game } from './game/main';
 import { auth, loginAnonymously, loginWithGoogle, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { Trophy, User as UserIcon, RefreshCw, X, ArrowRight, Ghost } from 'lucide-react';
+import { Trophy, User as UserIcon, RefreshCw, X, ArrowRight, Ghost, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateFunnyName } from './utils/names';
+import { audioManager } from './utils/audio';
 import { collection, query, where, getDocs, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
   const [isCheckingName, setIsCheckingName] = useState(false);
   const [nameError, setNameError] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [isMuted, setIsMuted] = useState(audioManager.getMuted());
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -148,11 +150,18 @@ export default function App() {
   };
 
   const fetchLeaderboard = async () => {
+    audioManager.playUI();
     if (gameRef.current) {
       const lb = await gameRef.current.score.getLeaderboard();
       setLeaderboard(lb);
       setShowLeaderboard(true);
     }
+  };
+
+  const handleToggleMute = () => {
+    const muted = audioManager.toggleMute();
+    setIsMuted(muted);
+    audioManager.playUI();
   };
 
   return (
@@ -208,7 +217,10 @@ export default function App() {
                 </div>
                 <div className="flex flex-col gap-4">
                   <button 
-                    onClick={() => handleClaimName()}
+                    onClick={() => {
+                      audioManager.playUI();
+                      handleClaimName();
+                    }}
                     disabled={isCheckingName || cooldown > 0}
                     className="w-full group bg-white text-black py-5 font-black tracking-widest hover:bg-white/90 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                   >
@@ -223,7 +235,10 @@ export default function App() {
                   </div>
 
                   <button 
-                    onClick={handlePlayAsGuest}
+                    onClick={() => {
+                      audioManager.playUI();
+                      handlePlayAsGuest();
+                    }}
                     disabled={isCheckingName || cooldown > 0}
                     className="w-full border border-white/10 py-5 font-black tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-3 group disabled:opacity-30"
                   >
@@ -284,6 +299,15 @@ export default function App() {
           LEADERBOARD
         </button>
 
+        <button 
+          id="mute-toggle-btn"
+          onClick={handleToggleMute}
+          className="group flex items-center gap-2 text-[10px] tracking-widest border border-white/20 px-3 py-1.5 hover:bg-white hover:text-black transition-all duration-300"
+        >
+          {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          {isMuted ? 'UNMUTE' : 'MUTE'}
+        </button>
+
         {!user?.isAnonymous && (
           <div id="user-display" className="text-[10px] tracking-widest opacity-40 uppercase">
             ID: {user?.displayName || user?.uid.slice(0, 8)}
@@ -314,7 +338,10 @@ export default function App() {
             >
               <button 
                 id="close-leaderboard-btn"
-                onClick={() => setShowLeaderboard(false)} 
+                onClick={() => {
+                  audioManager.playUI();
+                  setShowLeaderboard(false);
+                }} 
                 className="absolute top-6 right-6 p-2 hover:bg-white hover:text-black transition-colors"
                 aria-label="Close"
               >
@@ -379,7 +406,10 @@ export default function App() {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
                   id="restart-game-btn"
-                  onClick={() => gameRef.current?.score.onRestart?.()}
+                  onClick={() => {
+                    audioManager.playUI();
+                    gameRef.current?.score.onRestart?.();
+                  }}
                   className="w-full bg-white text-black py-4 font-black tracking-widest hover:invert transition-all duration-500 flex items-center justify-center gap-2"
                 >
                   <RefreshCw size={16} />

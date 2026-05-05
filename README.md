@@ -29,6 +29,7 @@
 - **Deterministic Physics**: Frame-rate independent gameplay for consistent competition across all devices.
 - **Global Hall of Fame**: Real-time leaderboards powered by optimized Firestore queries.
 - **Dynamic Zones**: Procedural difficulty scaling that adapts to your performance.
+- **Procedural Audio**: Real-time synthesized sound effects using the Web Audio API for a zero-latency minimalist soundscape.
 
 ## 🛡️ Hardened Security & Performance
 
@@ -44,6 +45,7 @@ Cubie-X is engineered for production-grade stability:
 - **Engine**: Custom Canvas-based 2D Vector Engine
 - **Animation**: Motion (formerly Framer Motion) for premium UI transitions
 - **Backend**: Firebase (Auth, Firestore, Hosting)
+- **Audio**: Custom Procedural Web Audio Engine
 - **Deployment**: Automated Cloud Deployment with Firebase CLI
 
 ## 🏃 Local Development

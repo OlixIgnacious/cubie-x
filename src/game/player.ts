@@ -1,5 +1,6 @@
 import { Vector2 } from './types';
 import { GRAVITY, JUMP_FORCE, DOUBLE_JUMP_FORCE, WALL_JUMP_FORCE_X, WALL_JUMP_FORCE_Y, SLIDE_HITBOX_HEIGHT, NORMAL_HITBOX_HEIGHT, PLAYER_WIDTH } from './constants';
+import { audioManager } from '../utils/audio';
 
 export class Player {
   pos: Vector2;
@@ -43,6 +44,7 @@ export class Player {
       this.canDoubleJump = true;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
+      audioManager.playJump();
     } else if (this.isWallSliding && this.wallSide) {
       this.vel.y = WALL_JUMP_FORCE_Y;
       this.vel.x = this.wallSide === 'left' ? WALL_JUMP_FORCE_X : -WALL_JUMP_FORCE_X;
@@ -50,10 +52,12 @@ export class Player {
       this.wallSide = null;
       this.canDoubleJump = true;
       this.jumpBufferTimer = 0;
+      audioManager.playJump();
     } else if (this.canDoubleJump) {
       this.vel.y = DOUBLE_JUMP_FORCE;
       this.canDoubleJump = false;
       this.jumpBufferTimer = 0;
+      audioManager.playDoubleJump();
     }
   }
 

@@ -4,6 +4,7 @@ import { Renderer } from './renderer';
 import { Input } from './input';
 import { ScoreManager } from './score';
 import { BASE_SPEED, MAX_SPEED, SPEED_INCREMENT, ZONE_DISTANCE, CHECKPOINT_DISTANCE, GROUND_Y_OFFSET } from './constants';
+import { audioManager } from '../utils/audio';
 
 export class Game {
   private player: Player;
@@ -124,6 +125,9 @@ export class Game {
           // Landing on top?
           const prevBottom = this.player.pos.y + this.player.size.y - this.player.vel.y;
           if (prevBottom <= o.pos.y + 10) {
+            if (!this.player.isGrounded) {
+                audioManager.playLand();
+            }
             this.player.pos.y = o.pos.y - this.player.size.y;
             this.player.vel.y = 0;
             this.player.isGrounded = true;
@@ -149,6 +153,7 @@ export class Game {
                 o.active = false;
                 this.player.vel.y = -8; // Bounce
                 this.renderer.flashEffect();
+                audioManager.playStomp();
             } else {
                 this.die();
             }
@@ -167,6 +172,7 @@ export class Game {
             c.collected = true;
             this.score.collect(c.isSecret);
             if (c.isSecret) this.renderer.flashEffect();
+            audioManager.playCollect(c.isSecret);
         }
     });
 
@@ -188,6 +194,7 @@ export class Game {
     }
     this.score.resetMultiplier();
     this.score.saveToFirebase('gameOver');
+    audioManager.playCrash();
   }
 
   public reset() {
