@@ -3,7 +3,7 @@ import { World } from './world';
 import { Renderer } from './renderer';
 import { Input } from './input';
 import { ScoreManager } from './score';
-import { BASE_SPEED, MAX_SPEED, SPEED_INCREMENT, ZONE_DISTANCE, CHECKPOINT_DISTANCE } from './constants';
+import { BASE_SPEED, MAX_SPEED, SPEED_INCREMENT, ZONE_DISTANCE, CHECKPOINT_DISTANCE, GROUND_Y_OFFSET } from './constants';
 
 export class Game {
   private player: Player;
@@ -23,7 +23,7 @@ export class Game {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d')!;
     this.renderer = new Renderer(ctx, canvas.width, canvas.height);
-    this.player = new Player(100, canvas.height - 150);
+    this.player = new Player(100, canvas.height - GROUND_Y_OFFSET - 80);
     this.world = new World(canvas.width, canvas.height);
     this.input = new Input();
     this.score = new ScoreManager();
@@ -59,6 +59,10 @@ export class Game {
   public start() {
     this.lastTime = performance.now();
     requestAnimationFrame(this.loop);
+  }
+
+  public setUsername(name: string) {
+    this.score.username = name;
   }
 
   private loop = (time: number) => {
@@ -179,17 +183,23 @@ export class Game {
     if (this.player.isDead) return;
     this.player.die();
     this.score.state.isGameOver = true;
+    if (this.score.onGameOver) {
+      this.score.onGameOver(true);
+    }
     this.score.resetMultiplier();
     this.score.saveToFirebase('gameOver');
   }
 
-  private reset() {
+  public reset() {
+    this.score.rollback();
+    if (this.score.onGameOver) {
+      this.score.onGameOver(false);
+    }
     const cp = this.score.state.lastCheckpoint;
-    const respawnPos = this.world.getCheckPointPos(cp.distance * 10);
+    const respawnPos = this.world.getCheckPointPos(cp.distance);
     
     this.player.respawn(respawnPos.x, respawnPos.y);
     this.scrollX = respawnPos.x - 100;
-    this.score.state.isGameOver = false;
     this.score.state.cleanRun = true;
     this.speed = BASE_SPEED + cp.zone * SPEED_INCREMENT;
     

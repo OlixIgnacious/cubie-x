@@ -1,10 +1,14 @@
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, doc, setDoc, getDoc, where } from 'firebase/firestore';
 import { GameState } from './types';
+import { MIN_SAVE_INTERVAL } from './constants';
 
 export class ScoreManager {
   public state: GameState;
   public onRestart?: () => void;
+  public onGameOver?: (isGameOver: boolean) => void;
+  public username: string = 'CubieRunner';
+  private lastSaveTime: number = 0;
 
   constructor() {
     this.state = this.getInitialState();
@@ -60,25 +64,25 @@ export class ScoreManager {
   async saveToFirebase(reason: 'gameOver' | 'checkpoint') {
     if (!auth.currentUser) return;
 
+    const currentTime = Date.now();
+    
+    // Throttling: Always allow gameOver, throttle checkpoints
+    if (reason === 'checkpoint' && currentTime - this.lastSaveTime < MIN_SAVE_INTERVAL) {
+        return;
+    }
+
     const path = 'scores';
     try {
-      let username = 'CubieRunner';
-      // Try to get real username from profile if not anonymous
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      if (userDoc.exists()) {
-        username = userDoc.data().username;
-      } else if (auth.currentUser.displayName) {
-        username = auth.currentUser.displayName;
-      }
-
       await addDoc(collection(db, path), {
         userId: auth.currentUser.uid,
-        username,
+        username: this.username,
         distance: Math.floor(this.state.distance),
         totalScore: Math.floor(this.state.score),
         timestamp: serverTimestamp(),
         reason
       });
+
+      this.lastSaveTime = currentTime;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -89,6 +93,7 @@ export class ScoreManager {
     try {
       const q = query(
         collection(db, path),
+        where('reason', '==', 'gameOver'), // Filter out checkpoints
         orderBy('totalScore', 'desc'),
         limit(10)
       );
@@ -97,6 +102,17 @@ export class ScoreManager {
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];
+    }
+  }
+
+  rollback() {
+    if (this.state.lastCheckpoint) {
+      this.state.distance = this.state.lastCheckpoint.distance;
+      this.state.score = this.state.lastCheckpoint.score;
+      this.state.zone = this.state.lastCheckpoint.zone;
+      this.state.multiplier = 1.0;
+      this.state.streak = 0;
+      this.state.isGameOver = false;
     }
   }
 }

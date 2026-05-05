@@ -8,8 +8,10 @@ import { Game } from './game/main';
 import { auth, loginAnonymously, loginWithGoogle, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { Trophy, User as UserIcon, RefreshCw, X } from 'lucide-react';
+import { Trophy, User as UserIcon, RefreshCw, X, ArrowRight, Ghost } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { generateFunnyName } from './utils/names';
+import { collection, query, where, getDocs, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -18,20 +20,49 @@ export default function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [identitySet, setIdentitySet] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [username, setUsername] = useState('');
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   useEffect(() => {
     // Auth Initialization
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (!u) {
+      setAuthReady(true);
+      if (u) {
+        // Check if user already has a name in Firestore
+        const userDoc = await getDoc(doc(db, 'users', u.uid));
+        if (userDoc.exists() && userDoc.data().username) {
+          setUsername(userDoc.data().username);
+          setIdentitySet(true);
+        } else {
+          setShowOnboarding(true);
+        }
+      } else {
         loginAnonymously();
       }
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     // Game Initialization
-    if (canvasRef.current && !gameRef.current) {
+    if (authReady && identitySet && canvasRef.current && !gameRef.current) {
       const game = new Game(canvasRef.current);
       gameRef.current = game;
+      game.setUsername(username); // Inject identity
       game.start();
 
       const handleResize = () => {
@@ -45,12 +76,14 @@ export default function App() {
       window.addEventListener('resize', handleResize);
       handleResize();
 
-      // Check for Game Over state to show UI
-      const timer = setInterval(() => {
-          if (gameRef.current && gameRef.current.score.state.isGameOver !== isGameOver) {
-              setIsGameOver(gameRef.current.score.state.isGameOver);
-          }
-      }, 50);
+      // Subscribe to Game Over state changes
+      game.score.onGameOver = (gameOver) => {
+          setIsGameOver(gameOver);
+      };
+
+      game.score.onRestart = () => {
+          game.reset();
+      };
 
       // Focus the canvas on mount
       setTimeout(() => {
@@ -58,22 +91,60 @@ export default function App() {
       }, 100);
 
       return () => {
-          unsubscribe();
           window.removeEventListener('resize', handleResize);
-          clearInterval(timer);
       };
     }
-  }, []);
+  }, [authReady, identitySet]);
 
-  const handleClaimName = async () => {
-    const u = await loginWithGoogle();
-    if (u) {
-      await setDoc(doc(db, 'users', u.uid), {
-        userId: u.uid,
-        username: u.displayName || 'CubieRunner',
-        isAnonymous: false
+  const handleClaimName = async (customName?: string) => {
+    if (!user) return;
+    if (cooldown > 0) return;
+
+    setIsCheckingName(true);
+    setNameError('');
+
+    try {
+      const nameToUse = customName || username;
+      
+      if (!nameToUse || nameToUse.length < 3) {
+        setNameError('NAME TOO SHORT (MIN 3 CHARS)');
+        setIsCheckingName(false);
+        return;
+      }
+
+      // Conflict Check
+      const q = query(collection(db, 'users'), where('username', '==', nameToUse));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty && querySnapshot.docs[0].id !== user.uid) {
+        setNameError('IDENTITY ALREADY ARCHIVED IN SYSTEM');
+        setIsCheckingName(false);
+        setCooldown(5); // Prevent rapid probing
+        return;
+      }
+
+      await setDoc(doc(db, 'users', user.uid), {
+        userId: user.uid,
+        username: nameToUse,
+        isAnonymous: user.isAnonymous,
+        updatedAt: serverTimestamp() // Use server timestamp for rules
       });
+
+      setUsername(nameToUse);
+      gameRef.current?.setUsername(nameToUse);
+      setIdentitySet(true);
+      setShowOnboarding(false);
+      setCooldown(30); // Rule-based cooldown
+    } catch (e) {
+      setNameError('DATA LINK FAILURE. RETRYING...');
+    } finally {
+      setIsCheckingName(false);
     }
+  };
+
+  const handlePlayAsGuest = () => {
+    const funnyName = generateFunnyName();
+    handleClaimName(funnyName);
   };
 
   const fetchLeaderboard = async () => {
@@ -86,6 +157,91 @@ export default function App() {
 
   return (
     <div id="game-container" className="relative w-full h-screen overflow-hidden bg-[#050505] text-white font-mono select-none">
+      <AnimatePresence>
+        {showOnboarding && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black p-4"
+          >
+            <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
+               {Array.from({ length: 20 }).map((_, i) => (
+                 <div key={i} className="whitespace-nowrap text-[8px] leading-none opacity-20">
+                   {Array.from({ length: 50 }).map(() => "01011010 ").join("")}
+                 </div>
+               ))}
+            </div>
+
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="w-full max-w-lg border border-white/10 bg-black/80 backdrop-blur-xl p-12 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              
+              <div className="mb-12">
+                <h2 className="text-4xl font-black tracking-tighter mb-2 italic">CUBIE-X</h2>
+                <p className="text-[10px] tracking-[0.3em] opacity-40 uppercase">INITIALIZING IDENTITY PROTOCOL</p>
+              </div>
+
+              <div className="space-y-8">
+                <div className="relative">
+                  <label className="block text-[8px] tracking-[0.4em] opacity-30 uppercase mb-3">UNIQUE_IDENTIFIER_STRING</label>
+                  <input 
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toUpperCase().replace(/\s/g, '_'))}
+                    placeholder="ENTER_NAME"
+                    className="w-full bg-transparent border-b border-white/20 py-4 text-2xl font-black tracking-widest focus:border-white outline-none transition-colors uppercase"
+                    maxLength={20}
+                  />
+                  {nameError && (
+                    <motion.p 
+                      initial={{ opacity: 0 }} 
+                      animate={{ opacity: 1 }} 
+                      className="absolute -bottom-6 left-0 text-[8px] text-red-500 tracking-widest font-bold"
+                    >
+                      ! {nameError}
+                    </motion.p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-4">
+                  <button 
+                    onClick={() => handleClaimName()}
+                    disabled={isCheckingName || cooldown > 0}
+                    className="w-full group bg-white text-black py-5 font-black tracking-widest hover:bg-white/90 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isCheckingName ? <RefreshCw size={18} className="animate-spin" /> : (cooldown > 0 ? null : <ArrowRight size={18} />)}
+                    {cooldown > 0 ? `LOCKED (${cooldown}S)` : 'ESTABLISH PROTOCOL'}
+                  </button>
+
+                  <div className="flex items-center gap-4 py-2">
+                    <div className="h-[1px] flex-1 bg-white/10" />
+                    <span className="text-[8px] opacity-20 tracking-widest">OR</span>
+                    <div className="h-[1px] flex-1 bg-white/10" />
+                  </div>
+
+                  <button 
+                    onClick={handlePlayAsGuest}
+                    disabled={isCheckingName || cooldown > 0}
+                    className="w-full border border-white/10 py-5 font-black tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-3 group disabled:opacity-30"
+                  >
+                    <Ghost size={18} className="group-hover:translate-x-1 transition-transform" />
+                    RUN AS ANONYMOUS_ENTITY
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center opacity-20">
+                <span className="text-[8px] tracking-widest">VER: 1.0.88</span>
+                <span className="text-[8px] tracking-widest">REGION: CLOUD_RUN_88</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <canvas 
         id="vectorun-canvas"
         ref={canvasRef} 
@@ -93,6 +249,12 @@ export default function App() {
         onClick={() => canvasRef.current?.focus()}
         className="w-full h-full block cursor-crosshair outline-none"
       />
+
+      {/* Branding Header */}
+      <div className="absolute top-6 left-6 flex flex-col z-10 pointer-events-none">
+        <span className="text-xl font-black tracking-tighter italic leading-none">CUBIE-X</span>
+        <span className="text-[8px] tracking-[0.4em] opacity-30 uppercase">VECTOR_RUNNER_V1.0</span>
+      </div>
 
       {/* UI Controls */}
       <div id="game-ui" className="absolute top-4 right-4 flex flex-col items-end gap-3 z-10">
@@ -104,10 +266,11 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               id="claim-name-btn"
               onClick={handleClaimName}
-              className="group flex items-center gap-2 text-[10px] tracking-widest border border-white/20 px-3 py-1.5 hover:bg-white hover:text-black transition-all duration-300"
+              disabled={isCheckingName || cooldown > 0}
+              className="group flex items-center gap-2 text-[10px] tracking-widest border border-white/20 px-3 py-1.5 hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <UserIcon size={12} />
-              CLAIM NAME
+              {cooldown > 0 ? `COOLING DOWN (${cooldown}S)` : 'CLAIM NAME'}
             </motion.button>
           )}
         </AnimatePresence>
@@ -199,7 +362,7 @@ export default function App() {
               animate={{ y: 0, opacity: 1 }}
               className="text-7xl font-black tracking-tighter mb-2 italic"
             >
-              SYSTEM ERROR
+              GAME OVER
             </motion.h1>
             <motion.p 
               initial={{ y: 20, opacity: 0 }}
@@ -207,7 +370,7 @@ export default function App() {
               transition={{ delay: 0.1 }}
               className="text-xs tracking-[0.4em] uppercase opacity-40 mb-12"
             >
-              TERMINATION SIGNAL DETECTED
+              FATAL EXCEPTION DETECTED
             </motion.p>
             
             <div className="flex flex-col gap-6 w-full max-w-xs">

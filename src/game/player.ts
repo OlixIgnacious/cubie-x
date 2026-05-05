@@ -94,11 +94,6 @@ export class Player {
 
     this.pos.x += this.vel.x;
     this.pos.y += this.vel.y;
-
-    // Standard ground level if no platforms (fallback)
-    if (this.pos.y > 800) { // Screen height fallback
-        this.die();
-    }
   }
 
   die() {
