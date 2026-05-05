@@ -1,5 +1,6 @@
 {
   "name": "cubie-x",
+  "description": "An ultra-smooth, physics-based minimalist vector runner built with React 19 and Firebase.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
