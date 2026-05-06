@@ -3,6 +3,10 @@
   <h1>🧊 Cubie-X</h1>
   <h3>The Ultimate High-Performance Vector Runner</h3>
   <p><i>Precision Physics • Global Competition • Hardened Security</i></p>
+  
+  <br />
+
+  <img width="800" alt="Cubie-X Gameplay" src="public/gameplay.webp" />
 
   <br />
 
