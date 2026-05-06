@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "cubie-x-game-88"
-  }
+  },
+  "targets": {
+    "cubie-x-game-88": {
+      "hosting": {
+        "main": [
+          "cubiex"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

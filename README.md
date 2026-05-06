@@ -13,7 +13,7 @@
   
   <br />
 
-  ### [🎮 Play Cubie-X Now](https://cubie-x-game-88.web.app)
+  ### [🎮 Play Cubie-X Now](https://cubiex.web.app)
 </div>
 
 ---
