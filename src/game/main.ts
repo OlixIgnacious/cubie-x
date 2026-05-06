@@ -207,7 +207,6 @@ export class Game {
     
     this.player.respawn(respawnPos.x, respawnPos.y);
     this.scrollX = respawnPos.x - 100;
-    this.score.state.cleanRun = true;
     this.speed = BASE_SPEED + cp.zone * SPEED_INCREMENT;
     
     // Resume next counters

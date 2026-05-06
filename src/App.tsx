@@ -29,6 +29,7 @@ export default function App() {
   const [nameError, setNameError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [isMuted, setIsMuted] = useState(audioManager.getMuted());
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -151,10 +152,15 @@ export default function App() {
 
   const fetchLeaderboard = async () => {
     audioManager.playUI();
+    setShowLeaderboard(true);
     if (gameRef.current) {
-      const lb = await gameRef.current.score.getLeaderboard();
-      setLeaderboard(lb);
-      setShowLeaderboard(true);
+      setIsLoadingLeaderboard(true);
+      try {
+        const lb = await gameRef.current.score.getLeaderboard();
+        setLeaderboard(lb);
+      } finally {
+        setIsLoadingLeaderboard(false);
+      }
     }
   };
 
@@ -280,7 +286,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               id="claim-name-btn"
-              onClick={handleClaimName}
+              onClick={() => handleClaimName()}
               disabled={isCheckingName || cooldown > 0}
               className="group flex items-center gap-2 text-[10px] tracking-widest border border-white/20 px-3 py-1.5 hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -320,60 +326,7 @@ export default function App() {
         WASD/ARROWS TO RUN & JUMP • S/DOWN TO SLIDE • R TO RESET
       </div>
 
-      {/* Global Leaderboard Modal */}
-      <AnimatePresence>
-        {showLeaderboard && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            id="leaderboard-modal"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md border border-white/20 p-10 bg-black relative shadow-[0_0_100px_rgba(255,255,255,0.05)]"
-            >
-              <button 
-                id="close-leaderboard-btn"
-                onClick={() => {
-                  audioManager.playUI();
-                  setShowLeaderboard(false);
-                }} 
-                className="absolute top-6 right-6 p-2 hover:bg-white hover:text-black transition-colors"
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-
-              <div className="mb-10 text-center">
-                <h2 className="text-3xl font-black tracking-tighter uppercase mb-1">HALL OF FAME</h2>
-                <div className="h-0.5 w-12 bg-white mx-auto" />
-              </div>
-
-              <div id="leaderboard-list" className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 scrollbar-hide">
-                {leaderboard.length > 0 ? leaderboard.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center group">
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs opacity-30 tabular-nums">{(i + 1).toString().padStart(2, '0')}</span>
-                      <span className="text-sm font-bold tracking-tight group-hover:pl-2 transition-all duration-300 uppercase">{s.username}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-black">{s.totalScore.toLocaleString()}</div>
-                      <div className="text-[8px] opacity-20">{s.distance}M Traversals</div>
-                    </div>
-                  </div>
-                )) : (
-                    <div className="text-center opacity-30 py-10 italic text-xs">NO RECORDS YET</div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Modals are rendered after the main game elements for proper stacking */}
       {/* Game Over Screen */}
       <AnimatePresence>
         {isGameOver && (
@@ -427,6 +380,65 @@ export default function App() {
                   VIEW STATUS
                 </motion.button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Leaderboard Modal */}
+      <AnimatePresence>
+        {showLeaderboard && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            id="leaderboard-modal"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-md border border-white/20 p-10 bg-black relative shadow-[0_0_100px_rgba(255,255,255,0.05)]"
+            >
+              <button 
+                id="close-leaderboard-btn"
+                onClick={() => {
+                  audioManager.playUI();
+                  setShowLeaderboard(false);
+                }} 
+                className="absolute top-6 right-6 p-2 hover:bg-white hover:text-black transition-colors"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="mb-10 text-center">
+                <h2 className="text-3xl font-black tracking-tighter uppercase mb-1">HALL OF FAME</h2>
+                <div className="h-0.5 w-12 bg-white mx-auto" />
+              </div>
+
+              <div id="leaderboard-list" className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 scrollbar-hide">
+                {isLoadingLeaderboard ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-30">
+                    <RefreshCw size={24} className="animate-spin" />
+                    <span className="text-[10px] tracking-widest">FETCHING_RECORDS...</span>
+                  </div>
+                ) : leaderboard.length > 0 ? leaderboard.map((s, i) => (
+                  <div key={i} className="flex justify-between items-center group">
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs opacity-30 tabular-nums">{(i + 1).toString().padStart(2, '0')}</span>
+                      <span className="text-sm font-bold tracking-tight group-hover:pl-2 transition-all duration-300 uppercase">{s.username}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-black">{s.totalScore.toLocaleString()}</div>
+                      <div className="text-[8px] opacity-20">{s.distance}M Traversals</div>
+                    </div>
+                  </div>
+                )) : (
+                    <div className="text-center opacity-30 py-10 italic text-xs">NO RECORDS YET</div>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -131,6 +131,12 @@ export class World {
       // Find a safe spot near distance
       const platform = this.obstacles.find(o => o.type === 'platform' && o.pos.x > distance);
       if (platform) {
+          // Clear any hazards (barriers, enemies) near the start of this platform to prevent death loops
+          this.obstacles = this.obstacles.filter(o => 
+            o.type === 'platform' || 
+            o.pos.x > platform.pos.x + 400 || 
+            o.pos.x < platform.pos.x
+          );
           return { x: platform.pos.x + 50, y: platform.pos.y - 70 };
       }
       return { x: distance, y: this.canvasHeight / 2 };
