@@ -19,7 +19,7 @@ export class Renderer {
     this.height = height;
   }
 
-  render(player: Player, world: World, state: GameState, scrollX: number, input: any) {
+  render(player: Player, world: World, state: GameState, scrollX: number, input: any, countdown: number = 0) {
     // Clear
     this.ctx.fillStyle = COLORS.BG;
     this.ctx.fillRect(0, 0, this.width, this.height);
@@ -42,7 +42,7 @@ export class Renderer {
     this.ctx.restore();
 
     // HUD
-    this.renderHUD(state);
+    this.renderHUD(state, countdown);
   }
 
   private renderBackground(scrollX: number) {
@@ -119,7 +119,7 @@ export class Renderer {
     this.ctx.fillRect(player.pos.x + player.size.x * 0.6, player.pos.y + 10, 5, 5);
   }
 
-  private renderHUD(state: GameState) {
+  private renderHUD(state: GameState, countdown: number = 0) {
     this.ctx.fillStyle = '#FFFFFF';
     this.ctx.font = 'bold 24px monospace';
     this.ctx.textAlign = 'left';
@@ -136,6 +136,22 @@ export class Renderer {
       this.ctx.font = 'italic bold 32px serif';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('CLEAN RUN', this.width / 2, 50);
+    }
+
+    // Countdown
+    if (countdown > 0) {
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.ctx.fillRect(0, 0, this.width, this.height);
+      
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.font = 'bold 120px monospace';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(countdown.toString(), this.width / 2, this.height / 2);
+      
+      this.ctx.font = 'bold 30px monospace';
+      this.ctx.fillText('GET READY', this.width / 2, this.height / 2 + 100);
+      this.ctx.textBaseline = 'alphabetic';
     }
   }
 

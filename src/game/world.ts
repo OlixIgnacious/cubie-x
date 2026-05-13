@@ -132,9 +132,10 @@ export class World {
       const platform = this.obstacles.find(o => o.type === 'platform' && o.pos.x > distance);
       if (platform) {
           // Clear any hazards (barriers, enemies) near the start of this platform to prevent death loops
+          // Increased clearance to 1000px for better reaction time
           this.obstacles = this.obstacles.filter(o => 
             o.type === 'platform' || 
-            o.pos.x > platform.pos.x + 400 || 
+            o.pos.x > platform.pos.x + 1000 || 
             o.pos.x < platform.pos.x
           );
           return { x: platform.pos.x + 50, y: platform.pos.y - 70 };

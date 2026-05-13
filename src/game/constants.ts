@@ -13,6 +13,7 @@ export const GROUND_Y_OFFSET = 120;
 export const ZONE_DISTANCE = 5000; // Distance to next zone
 export const CHECKPOINT_DISTANCE = 2500; // Distance between checkpoints
 export const MIN_SAVE_INTERVAL = 30000; // Minimum time between saves in ms (30s)
+export const RESPAWN_COUNTDOWN = 3000; // 3 seconds grace period
 export const COLORS = {
   BG: '#050505',
   PLAYER: '#FFFFFF',

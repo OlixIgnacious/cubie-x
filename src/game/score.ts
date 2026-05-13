@@ -112,7 +112,9 @@ export class ScoreManager {
       this.state.zone = this.state.lastCheckpoint.zone;
       this.state.multiplier = 1.0;
       this.state.streak = 0;
-      this.state.cleanRun = false; // Respawning from checkpoint is no longer a clean run
+      // If we are rolling back to the very beginning, it's a new clean run attempt.
+      // Otherwise, any checkpoint usage breaks the clean run.
+      this.state.cleanRun = this.state.distance === 0;
       this.state.isGameOver = false;
     }
   }

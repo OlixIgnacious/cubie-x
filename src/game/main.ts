@@ -3,7 +3,7 @@ import { World } from './world';
 import { Renderer } from './renderer';
 import { Input } from './input';
 import { ScoreManager } from './score';
-import { BASE_SPEED, MAX_SPEED, SPEED_INCREMENT, ZONE_DISTANCE, CHECKPOINT_DISTANCE, GROUND_Y_OFFSET } from './constants';
+import { BASE_SPEED, MAX_SPEED, SPEED_INCREMENT, ZONE_DISTANCE, CHECKPOINT_DISTANCE, GROUND_Y_OFFSET, RESPAWN_COUNTDOWN } from './constants';
 import { audioManager } from '../utils/audio';
 
 export class Game {
@@ -19,6 +19,7 @@ export class Game {
   private lastTime: number = 0;
   private nextCheckpoint: number = CHECKPOINT_DISTANCE;
   private nextZone: number = ZONE_DISTANCE;
+  private countdown: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -70,10 +71,17 @@ export class Game {
     const dt = Math.min(32, time - this.lastTime); // Cap dt to avoid huge jumps
     this.lastTime = time;
 
-    if (!this.score.state.isPaused) {
-        this.update(dt);
+    if (!this.score.state.isPaused && !this.score.state.isGameOver) {
+        if (this.countdown > 0) {
+            this.countdown -= dt;
+            if (this.countdown < 0) this.countdown = 0;
+        } else {
+            this.update(dt);
+        }
     }
-    this.render();
+    
+    // Pass countdown to renderer
+    this.renderer.render(this.player, this.world, this.score.state, this.scrollX, this.input, Math.ceil(this.countdown / 1000));
 
     requestAnimationFrame(this.loop);
   }
@@ -202,8 +210,20 @@ export class Game {
     if (this.score.onGameOver) {
       this.score.onGameOver(false);
     }
+
     const cp = this.score.state.lastCheckpoint;
-    const respawnPos = this.world.getCheckPointPos(cp.distance);
+    
+    // Re-initialize world to ensure we have the correct platforms at the checkpoint
+    this.world.init();
+    
+    // Score distance is scrollX / 10. Checkpoints are stored in score units.
+    const targetScrollX = cp.distance * 10;
+    
+    // Generate world up to the checkpoint
+    this.world.update(targetScrollX, cp.zone);
+
+    // Find a safe spot near the checkpoint distance
+    const respawnPos = this.world.getCheckPointPos(targetScrollX);
     
     this.player.respawn(respawnPos.x, respawnPos.y);
     this.scrollX = respawnPos.x - 100;
@@ -212,9 +232,9 @@ export class Game {
     // Resume next counters
     this.nextCheckpoint = this.scrollX + CHECKPOINT_DISTANCE;
     this.nextZone = this.scrollX + ZONE_DISTANCE;
+    
+    // Start countdown
+    this.countdown = RESPAWN_COUNTDOWN;
   }
 
-  private render() {
-    this.renderer.render(this.player, this.world, this.score.state, this.scrollX, this.input);
-  }
 }
